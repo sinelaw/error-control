@@ -1,0 +1,19 @@
+Name: graphui
+cabal-Version: >= 1.2
+Description: Error Control Codes
+Version: 0.1
+Stability: experimental
+Synopsis:  Error Control Codes
+homepage: 
+License: BSD3
+Category: Graphics
+Author: Noam Lewis
+Maintainer: lenoam@gmail.com
+Build-Type: Simple
+
+Library
+  hs-source-dirs:  src
+  Build-Depends: base >= 4, hmatrix-static, hmatrix
+  ghc-options : -O2 -Wall 
+  exposed-modules: ErrorControl
+
