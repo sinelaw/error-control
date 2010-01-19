@@ -4,7 +4,7 @@
 
 module ErrorControl where
 
-import qualified Data.Packed.Static as Static
+import Data.Packed.Static 
 \end{code}
 %endif
 
@@ -101,9 +101,9 @@ In Haskell, we use Vector-typed values (from the HMatrix package) for input data
 
 \begin{code}
 weightV :: Vector n a -> Int
-weightV = Vector.foldVector (\x -> if x == 0 then id else succ) 0
+weightV = foldVector (\x -> if x == 0 then id else succ) 0
 \end{code}
-Here and henceforth, ``Vector'' is the qualified name for HMatrix's ``Data.Packed.Vector''. In many cases we want a measure for the ``distance'' between two words. The most common measure used is the Hamming distance.
+In many cases we want a measure for the ``distance'' between two words. The most common measure used is the Hamming distance.
 
 \begin{definition}[Hamming distance]
   The Hamming distance between two vectors is the number of elements which differ between them.
@@ -115,19 +115,19 @@ if' :: a -> a -> Bool -> a
 if' a b p = if p then a else b
 
 hammDist1 :: Vector n a -> Vector n a -> Int
-hammDist1 = Vector.foldVector (if' succ id) . Vector.zipVector (==) 
+hammDist1 = foldVector (if' succ id) . zipVector (==) 
 \end{code}
 In functional programming we have the luxury of equational reasoning. In the last definition we can reason that elements in vectors are equal if the difference between them is zero. (In other words, $x=y \Leftrightarrow x-y=0$). Thus,
 \begin{code}
-hammDist2 = Vector.foldVector (if' succ id) . Vector.zipVector (\x y -> x-y == 0) 
+hammDist2 = foldVector (if' succ id) . zipVector (\x y -> x-y == 0) 
 \end{code}
 Moving the condition $=0$ into the fold yields:
 \begin{code}
-hammDist3 = Vector.foldVector (\e -> if e == 0 then id else succ) . Vector.zipVector (\x y -> x-y) 
+hammDist3 = foldVector (\e -> if e == 0 then id else succ) . zipVector (\x y -> x-y) 
 \end{code}
 Now we notice that the fold matches exactly the above definition for weightV.
 \begin{code}
-hammDist4 = weightV . Vector.zipVector (\x y -> x-y) 
+hammDist4 = weightV . zipVector (\x y -> x-y) 
 \end{code}
 Finally, the zip is simply pointwise subtraction, so we have:
 \begin{code}
@@ -342,6 +342,34 @@ We therefore construct the \emph{parity check matrix} $\mathbf{H}$ using a basis
 This allows us to test a received code word's validity by mulplication with $\mathbf{H}^T$:
 \begin{equation*}
   \mathbf{c} \mathbf{H}^T = 0 \Leftrightarrow \mathbf{c} \in \mathbf{C}
+\end{equation*}
+Multiplying $\mathbf{c}$ by $\mathbf{H}^T$ is equivalent to linearly combining the rows of $\mathbf{H}^T$, which are the columns of $\mathbf{H}$. The minimum-weighted code word thus combines a minimal subset of the columns of $\mathbf{H}$, and that combination equals zero (because $\mathbf{c} \in \mathbf{C}$, is a valid code word). This leads to the following theorem.
+\begin{theorem}
+  \label{the:min-dist-H}
+  The minimum distance of a code $\mathbf{C}$ with a parity check matrix $\mathbf{H}$, is the minimal nonzero number of columns of $\mathbf{H}$ that have a nontrivial linear combination that equals zero.
+\end{theorem}
+$\mathbf{H}$ has exactly $n-k$ rows, which are linearly independent - the row rank is $n-k$ and thus the column rank is also $n-k$. Therefore any $n-k+1$ columns are linearly dependent. This reasoning can be used to bound the minimum distance of a code.
+\begin{theorem}
+  The minimum distance $d_{min}$ for an $(n,k)$ code is bounded by:
+  \begin{equation*}
+    d_{min} \leq n - k + 1
+  \end{equation*}
+\end{theorem}
+
+Note that without the existence of generator and parity check matrices, encoding and decoding is a very expensive operation that requires lookup tables and searches. These matrices are what makes $(64,56)$ Reed-Solomon codes feasable - they have $1.4 \cdot 10^{101}$ code words, far more than can be managed by lookup tables.
+
+\subsection{Systematic Encoding}
+A generator matrix fo an $(n,k)$ code always has rank $k$ ($k$ equals the number of vectors that form a basis for $\mathbf{C}$). Using Gaussian elimination and column reordering, it is possible to obtain a generator matrix of the following form:
+\begin{equation*}
+  \mathbf{G}_{k \times n} = \left[ \mathbf{P}_{k \times (n-k)} \mid \mathbf{I}_{k \times k} \right]
+\end{equation*}
+Using this form is advantegous, because the last $k$ elements of the encoded words will always equal the message elements. 
+\begin{equation*}
+  \mathbf{c} = \mathbf{m} \mathbf{G} = \left[m_0\ m_1\ \cdots\ m_{k-1}\right] \left[ \mathbf{P} \mid \mathbf{I}\right] = \left[c_0\ c_1\ \cdots c_{n-k-1} \mid m_0\ m_1\ \cdots\ m_{k-1} \right]
+\end{equation*}
+The corresponding parity check matrix is:
+\begin{equation*}
+  \mathbf{H} = \left[ \mathbf{I}_{n-k} \mid -\mathbf{P}^T \right]
 \end{equation*}
 
 \end{document}
