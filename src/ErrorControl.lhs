@@ -8,7 +8,7 @@ import qualified Data.Packed.Static as Static
 \end{code}
 %endif
 
-\documentclass[onecolumn,x11names,twoside,a4paper,english]{IEEEtran}
+\documentclass[onecolumn,x11names,twoside,a4paper,11pt,english]{IEEEtran}
 \usepackage[english]{babel}
 \usepackage[pdftex]{graphicx}
 \usepackage{amssymb}
@@ -33,14 +33,14 @@ import qualified Data.Packed.Static as Static
 \maketitle
 
 \begin{abstract}
-  Error control codes (ECCs) are used to protect data from errors. The theory of ECCs involves such mathematics as finite fields and linear algebra. This report describes an attempt to implement a few ECCs in Haskell. The code takes advantage of the hmatrix-static package and others. 
+  Error control codes (ECCs) are used to protect data from errors. The theory of ECCs involves such mathematics as finite fields and linear algebra. This report describes an attempt to implement a few ECCs in Haskell. The code takes advantage of the hmatrix-static package and others. It is basically a summary of chapters from the book Error Control Systems for Digital Communication and Storage, by Stephen B. Wicker.
 \end{abstract}
 
 \section{Introduction}
 
 A Galois field of size $q$ is a finite field with $q$ distinct elements and is denoted $GF(q)$. A theorem states that $q$ must be a power of a prime, $q=p^r$ where $p$ is prime. If $q$ is prime, $GF(q)$ is equivalent to the integers with arithmetic modulo $q$. 
 
-\section{Linear Block Codes}
+\section{Block Codes}
 
 A block code takes vectors (blocks) of input symbols and encodes each one into an output vector (code word). The input data is a stream of symbols from $GF(q)$. If the data is sliced into blocks of size $k$, the set of all possible data blocks, that is - all $k$-tuples $(m_0, m_1, \ldots, m_{k-1})$, forms a vector space over $GF(q)$. In that case, there are $q^k$ possible $k$-symbol data vectors. 
 
@@ -151,7 +151,8 @@ minHammDist' :: [Vector n a] -> Int
 minHammDist' (v:vs) = minHammDist vs `min` minDistFrom v vs
     where minDistFrom v = foldr1 min . map (hammDist v)
 minHammDist' (v1:v2:[]) = hammDist v1 v2
-minHammDist' _      = error "Need two or more vectors to calculate minimum distance"
+minHammDist' _      = error "Need two or more vectors"
+                            ++ " to calculate minimum distance"
 \end{code}
 We can generalize minDist to a function that folds over a commutative binary operation:
 \begin{code}
@@ -159,7 +160,7 @@ commFoldr :: (b -> b -> b) -> (a -> a -> b) -> [a] -> b
 commFoldr mergeF binF (x:xs) = commFoldr mergeF binF xs `mergeF` commFoldr' xs
     where commFoldr' = foldr1 mergeF . map (binF x)
 commFoldr _ binF (x1:x2:[]) = binF x1 x2
-commFoldr _ _ _ = error "Need two or more values to calculate commutative fold"
+commFoldr _ _ _ = error "Need two or more values for commFoldr"
 \end{code}
 Using the generalization simplifies minHammDist' to:
 \begin{code}
@@ -299,5 +300,48 @@ A theorem due to Tietavainen shows that no perfect codes exist other than those 
 \begin{theorem}
   Any perfect code must have the same length $n$, symbol field $GF(q)$ and size $M=q^k$ as a Hamming, Golay or repetition code.
 \end{theorem}
+
+
+\section{Linear Block Codes}
+
+\begin{definition}[Linear block code]
+  A $q$-ary block code is \emph{linear} if and only if its code words form a vector subspace over $GF(q)$.
+\end{definition}
+The \emph{dimension} of the linear code is then the dimension of the corresponding subspace (the dimension of the subspace is the minimal number of code words required to form a basis for the vector space spanned by the code). A linear code of length $n$ and dimension $k$ is called an $(n,k)$ code. The number of code words in the code is then $q^k$, and they are all of length $n$. 
+
+\subsection{Properties of Linear Codes}
+
+Following are three important properties of linear codes.
+
+\subsubsection{Linear combination} 
+The linear combination of any code words is also a code word. Thus, all linear codes contain the zero vector (the all-zero code word).
+
+\subsubsection{Minimum distance}
+The minimum distance of a linear code is the weight of the lowest-weight non-zero code word. This property implies that a non-analytical calculation of the code's minimum distance is much more efficient, because there is no need to compare all code word pairs. Instead we just find the minimal weight. The previous $\mathcal{O}(n^2)$ calculation is reduced to linear time (with respect to the number of code words, $q^k$), and the implementation is also greatly simplified. Compare the following to the definition of minHammDist, above:
+\begin{code}
+minHammDistLin :: [Vector n a] -> Int
+minHammDistLin = foldr (min . weightV)
+\end{code}
+
+\subsubsection{Undetectable errors}
+As always, if a code word is erroneously received as another legal code word, the error is undetectable. However, linear codes have the special property that the error \emph{patterns} that cause undetectable errors, are themselves legal code words. Consider that the transmitted code word $\mathbf{c}$ was erroneously received as $\mathbf{\bar{c}}$. The error pattern is then $\mathbf{e} = \mathbf{\bar{c}} - \mathbf{c}$, but this pattern is a linear combination of two code words, and must itself be a code word.
+
+\subsection{Generator and Parity-Check Matrices}
+For every code word $\mathbf{c}$ in a $q$-ary $(n,k)$ linear code $\mathbf{C}$, there exists a unique representation $\mathbf{c} = m_0\mathbf{g_0} + m_1\mathbf{g_1} + \ldots + m_{k-1}\mathbf{g_{k-1}}$, where the code words $\mathbf{g_i}$ form a basis for $\mathbf{C}$. Thus, given a basis for $\mathbf{C}$, every code word has a one-to-one relation with a $k$-symbol block, $m_0,\ldots,m_{k-1}$ over $GF(q)$. We may construct a matrix $\mathbf{G}$ with the $\mathbf{g_i}$ vectors as its rows. Multiplying the block $\mathbf{m}=(m_0,\ldots,m_{k-1})$ by $\mathbf{G}$ will yield the representation for the appropriate code word $\mathbf{c}$:
+\begin{equation*}
+  \mathbf{m}\mathbf{G} = (m_0,m_1,\ldots,m_{k_1}) \begin{bmatrix} \mathbf{g_0} \\ \mathbf{g_1} \\ \vdots \\ \mathbf{g_{k-1}} \end{bmatrix} = m_0\mathbf{g_0} + m_1\mathbf{g_1} + \ldots + m_k\mathbf{g_{k-1}} = \mathbf{c}
+\end{equation*}
+The matrix $\mathbf{G}$ is known as the \emph{generator matrix} for the code $\mathbf{C}$. It encodes a message of size $k$ into a code word of size $n$.
+
+Since the code words $\mathbf{C}$ form a vector subspace within the space of all $n$-sized vectors, it must also have a dual space. Recall that the dual space of a vector subspace $S$ is the set $S^\perp = \{ v \mid \forall u \in S,\ u \cdot v = 0\}$. In addition, if $S$ is a subspace of dimension $k$ within a space of dimension $n$, the dimension of $S^\perp$ is $n-k$. In our context, the dual space of $\mathbf{C}$ is the subspace of all vectors whose inner product with valid code words is always zero, $\forall \mathbf{c} \in \mathbf{C}, \forall \mathbf{\hat{c}} \in \mathbf{C}^\perp : \mathbf{c} \cdot \mathbf{\hat{c}} = 0$. Since $\mathbf{C}$ has dimension $k$, and the vectors are of length $n$, the dimension of $\mathbf{C}^\perp$ is $n-k$. To find out if $\mathbf{c}$ is indeed a valid code word, we can multiply it with each of the $n-k$ vectors of a basis of $\mathbf{C}^\perp$ and see if they are all zero. If so, $\mathbf{c}$ must be in $\mathbf{C}$. 
+
+We therefore construct the \emph{parity check matrix} $\mathbf{H}$ using a basis $(\mathbf{h_0},\mathbf{h_1},\ldots,\mathbf{h_{n-k-1}})$ of $\mathbf{C}^\perp$ as follows:
+\begin{equation*}
+  \mathbf{H} = \begin{bmatrix} \mathbf{h_0} \\ \mathbf{h_1} \\ \vdots \\ \mathbf{h_{n-k-1}} \end{bmatrix} 
+\end{equation*}
+This allows us to test a received code word's validity by mulplication with $\mathbf{H}^T$:
+\begin{equation*}
+  \mathbf{c} \mathbf{H}^T = 0 \Leftrightarrow \mathbf{c} \in \mathbf{C}
+\end{equation*}
 
 \end{document}
