@@ -107,15 +107,36 @@ If a block code has a minimum distance of $d_{min}$, a code word can only be con
 \subsection{Minimizing decoder errors}
 If the decoder receives an erroneous word, it must somehow pick a valid code word by some criteria. The ``picking'' problem is sometimes known as a classification problem. A natural choice for classification criteria is to try to minimize the probability of error. Denote the following:
 \begin{itemize}
-\item $p_t(\mathbf{c})$ = probability of $\mathbf{c}$ to be the original (sent) code word;
-\item $p_r(\mathbf{r})$ = probability of $\mathbf{r}$ to be the received code word;
 \item $\mathbf{c_j}$ = the actual code word sent, $0 \le j<M$ where $M$ is the number of possible distinct code words (the size of the block code);
-\item $\mathbf{\bar{c}}$ = the code word picked after the error correction attempt.
+\item $\mathbf{r}$ = the code word received, after additive errors;
+\item $p_t(\mathbf{c})$ = probability of $\mathbf{c}$ to be the original (sent) code word;
+\item $p_r(\mathbf{r})$ = probability of receiving the code word $\mathbf{r}$;
 \end{itemize}
-What we want is to find the code word $c_i$ that minimizes error:
+What we want is to find the code word $\mathbf{c_i}$ that minimizes error:
 \begin{equation*}
-  P(\mbox{error}) = P(\mathbf{\bar{c}} \neq \mathbf{c_j}) = P\left(\bigcup_{i=0,i\neq j}^M{ ( \mathbf{\bar{c}} = \mathbf{c_i} ) }\right) = \sum_{i=0,i \neq j}^M{P(\mathbf{\bar{c}} = \mathbf{c_i})}.
+  P(\mbox{picking}\ \mathbf{c_i}\ \mbox{is an error} \mid \mathbf{r}\ \mbox{received}) =  P(\mathbf{c_i} \neq \mathbf{c_j} \mid \mathbf{r}) = 1 - P(\mathbf{c_i} = \mathbf{c_j} \mid \mathbf{r})
 \end{equation*}
+In other words, to minimize error, we want to \emph{maximize} the probability for correct decoding. The probability we want to maximize is $P(\mathbf{c_i} = \mathbf{c_j} \mid \mathbf{r}) = P(\mathbf{c_i}\ \mbox{was sent} \mid \mathbf{r}\ \mbox{recieved})$, and the criteria is called \emph{maximum a posteriori} decoding. Using Bayes' rule we can transform it into an expression on the \emph{a priori} probability $P(\mathbf{r}\ \mbox{received} \mid  \mathbf{c_i}\ \mbox{sent})$, the probability for receiving $\mathbf{r}$ under the condition that $\mathbf{c_i}$ was sent. This probability can often be calculated from the properties of the channel and the block code used. Using Bayes' rule gives:
+\begin{equation*}
+  P(\mathbf{c_i} \mid \mathbf{r}) = \frac{p_t(\mathbf{c_i}) P(\mathbf{r} \mid \mathbf{c_i})} {p_r(\mathbf{r})}
+\end{equation*}
+Recall that we are searching for the code word $\mathbf{c_i}$ that maximizes the above expression. If the probabilities $p_t(\mathbf{c_i})$ are the same for all the code words (i.e. for all $0 \leq i < M$), then we can disregard that as a constant factor that has no effect on the maximum of the right-hand-side expression. In this case, the maximum of the whole expression will coincide with the maximum of $P(\mathbf{r} \mid \mathbf{c_i})$. The constancy condition on $p_t$ is plausible - it means that all code words are equally likely to be transmitted. Picking the code word $\mathbf{c_i}$ that maximizes $P(\mathbf{r} \mid \mathbf{c_i})$ is known as \emph{maximum likelihood} decoding. Under the condition of constant $p_t$, it is equivalent to the aforementioned maximum a posteriori decoding, and it minimizes the probability of error.
+
+We may express $P(\mathbf{r} \mid \mathbf{c_i})$ in error pattern terms. Let $\mathbf{e_i} = \mathbf{r} - \mathbf{c_i}$, be the error pattern corresponding to $\mathbf{c_i}$ having been transmitted, and $\mathbf{r}$ received. Then the probability for receiving $\mathbf{r}$ will be equal to the probability of $\mathbf{e_i}$ having been the error pattern in the transmission. Assuming that lower-weight error patterns are more likely than higher-weight ones, the code word $\mathbf{c_i}$ that \emph{maximizes} $P(\mathbf{r} \mid \mathbf{c_i})$ is the one that corresponds to the \emph{lowest}-weight error pattern. However, the weight of the error pattern $\mathbf{e_i}$ is by definition the number of non-zero symbols in the pattern $\mathbf{r} - \mathbf{c_i}$. This number is exactly the Hamming distance between $\mathbf{r}$ and $\mathbf{c_i}$. To summarize, the minimum error will be achieved if we pick $\mathbf{c_i}$ that is nearest (in Hamming distance) to $\mathbf{r}$.
+
+A consequence of the above statement is that correct decoding depends on receiving a word that is closest to the transmitted code word. The minimum distance between code words is $d_{min}$. Thus, if the received word is more than $d_{min}/2$ away from the sent code word, it may end up closer to a different, unintended code word which will cause the decoder to misclassify. The conclusion is that a block code with minimum distance $d_{min}$ can correct all error patterns of weight less than $d_{min}/2$.
+
+\subsection{Complete and bounded distance decoders}
+
+\begin{definition}[Complete decoder]
+  Given a received word $\mathbf{r}$, a complete error correcting decoder picks the closest code word (in Hamming distance) as the result of the decoding.
+\end{definition}
+For efficiency reasons, we often prefer to use bounded distance decoders, which are defined as:
+\begin{definition}[Bounded distance decoder]
+  Given a received word $\mathbf{r}$ and a distance bound $t$, a $t$-error correcting bounded distance decoder considers the closest code word (the one with the minimal Hamming distance, $d$) within the sphere of distance $t$. If such a code word is found, it is the result of the decoding. Otherwise, the decoding fails. 
+\end{definition}
+Note that for the distance bound $t$ to make sense, it must satisfy $t \leq d_{min}/2$. Beyond the distance of $d_{min}/2$ the decoder will always find a code word, and the bound is useless - the decoder would become a complete decoder.
+
 
 
 \end{document}
