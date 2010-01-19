@@ -59,7 +59,15 @@ If $M=q^k$ then the input vectors can be of equal length, $k$. This case, of equ
 
 
 \subsection{Additive noise channel}
-The whole point of ECCs is that they can be used to detect and possibly correct errors in the data. The model considered here is the \emph{additive noisy channel model}. Recall that the code words we consider are formed of symbols from $GF(q)$. The additive model then assumes that the original encoding of the data, the \emph{transmitted codewords}, pass through a channel that adds error symbols (via modulo-$q$ addition) to arbitrary places in the codeword. Thus, if the transmitted word is $\mathbf{c}=(c_0, c_1, \ldots, c_{n-1})$, and the error word happens to be $\mathbf{e}=(e_0,e_1,\ldots,e_{n-1})$, then the received word is $\mathbf{r}=\mathbf{c}+\mathbf{e}=(c_0+e_0, c_1+e_1, \ldots, c_{n-1}+e_{n-1})$. Hopefully, most of the $e_i$ symbols are zero. The vector $\mathbf{e}$ is called an \emph{error pattern}.
+The whole point of ECCs is that they can be used to detect and possibly correct errors in the data. The model considered here is the \emph{additive noisy channel model}. Recall that the code words we consider are formed of symbols from $GF(q)$. The additive model then assumes that the original encoding of the data, the \emph{transmitted codewords}, pass through a channel that adds error symbols (via modulo-$q$ addition) to arbitrary places in the codeword. Thus, if the transmitted word is $\mathbf{c}=(c_0, c_1, \ldots, c_{n-1})$, and the error word happens to be $\mathbf{e}=(e_0,e_1,\ldots,e_{n-1})$, then the received word is $\mathbf{r}=\mathbf{c}+\mathbf{e}=(c_0+e_0, c_1+e_1, \ldots, c_{n-1}+e_{n-1})$. Hopefully, most of the $e_i$ symbols are zero. The vector $\mathbf{e}$ is called an \emph{error pattern}. We can thus write: $\mathbf{e} = \mathbf{r} - \mathbf{c}$, or in Haskell:
+\begin{code}
+  errorPat r c = r - c
+\end{code}
+Which can be reduced to:
+\begin{code}
+  errorPat' = (-)
+\end{code}
+
 
 \subsection{Detecting and reacting to errors}
 The decoder recieves encoded words with errors added. Thus, it must first identify whether errors have occured in the received words. This identification is called \emph{error detection}. If the received erroneous word happens to match a different, valid, but unintended code word, then error detection will fail by what we call an \emph{undetectable error}. Since there are $M$ total valid coded words, for each coded word there are $M-1$ other code words that may be mistakenly accepted by the decoder.
@@ -93,11 +101,27 @@ In Haskell, we can implement the Hamming distance function directly, using zipVe
 if' a b p = if p then a else b
 hammingDist = Vector.foldVector (if' succ id) . Vector.zipVector (==) 
 \end{code}
-
-Or, using the weight function on the difference between Vectors:
+In functional programming we have the luxury of equational reasoning. In the last definition we can reason that elements in vectors are equal if the difference between them is zero. (In other words, $x=y \Leftrightarrow x-y=0$). Thus,
 \begin{code}
-hammingDist' = weightV . (-)
+hammingDist2 = Vector.foldVector (if' succ id) . Vector.zipVector (\x y -> x-y == 0) 
 \end{code}
+Moving the condition $=0$ into the fold yields:
+\begin{code}
+hammingDist3 = Vector.foldVector (\e -> if e == 0 then id else succ) . Vector.zipVector (\x y -> x-y) 
+\end{code}
+Now we notice that the fold matches exactly the above definition for weightV.
+\begin{code}
+hammingDist4 = weightV . Vector.zipVector (\x y -> x-y) 
+\end{code}
+Finally, the zip is simply pointwise subtraction, so we have:
+\begin{code}
+hammingDist5 = weightV . (-)
+\end{code}
+Recall that the function errorPat' was defined as (-). Therefore,
+\begin{code}
+hammingDist' = weightV . errorPat'
+\end{code}
+This last implementation shows that the Hamming distance between two vectors is equivalent to the weight of the error pattern between them. This equivalnce is not hard to see from the start, so the reasoning sequence above may seem redundant. It was presented as a nice example of equational reasoning in Haskell.
 
 \begin{definition}[Minimum Distance of a Block Code]
   The minimum distance of a block code $\mathbf{C}$ is the minimum Hamming distance between every two distinct code words in $\mathbf{C}$.
